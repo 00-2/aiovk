@@ -7,8 +7,6 @@ from . import API
 from .api import LazyAPI
 from .exceptions import VkLongPollError
 
-from messaging.messaging import ROUTING_KEYS
-
 
 class BaseLongPoll(ABC):
     """Interface for all types of Longpoll API"""
@@ -752,3 +750,4 @@ class EventEncoder(json.JSONEncoder):
         if isinstance(obj, MessageEvent):
             return obj.to_serializable()
         return json.JSONEncoder.default(self, obj)
+
