@@ -473,7 +473,7 @@ class MessageEvent(object):
     """
 
     def __init__(self, raw):
-        self.routing_key = ROUTING_KEYS['vk_send_message']
+        self.routing_key = None
         self.raw = raw
 
         self.from_user = False
