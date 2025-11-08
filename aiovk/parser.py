@@ -55,7 +55,7 @@ class TwoFactorCodePageParser(html.parser.HTMLParser):
         elif tag == 'form':
             for name, value in attrs:
                 if name == 'action':
-                    self.url = urllib.parse.urljoin('https://m.vk.com/', value)
+                    self.url = urllib.parse.urljoin('https://m.vk.ru/', value)
         elif tag == 'div':
             attrs = dict(attrs)
             if attrs.get('class', '') == 'service_msg service_msg_warning':

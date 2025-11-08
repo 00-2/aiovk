@@ -7,7 +7,6 @@ from . import API
 from .api import LazyAPI
 from .exceptions import VkLongPollError
 
-
 class BaseLongPoll(ABC):
     """Interface for all types of Longpoll API"""
     def __init__(self, session_or_api, mode: Optional[Union[int, list]],
@@ -110,7 +109,7 @@ class BaseLongPoll(ABC):
 
 
 class UserLongPoll(BaseLongPoll):
-    """Implements https://vk.com/dev/using_longpoll"""
+    """Implements https://vk.ru/dev/using_longpoll"""
     # False for testing
     use_https = True
 
@@ -124,14 +123,14 @@ class UserLongPoll(BaseLongPoll):
 
 
 class LongPoll(UserLongPoll):
-    """Implements https://vk.com/dev/using_longpoll
+    """Implements https://vk.ru/dev/using_longpoll
 
     This class for backward compatibility
     """
 
     
 class BotsLongPoll(BaseLongPoll):
-    """Implements https://vk.com/dev/bots_longpoll"""
+    """Implements https://vk.ru/dev/bots_longpoll"""
     def __init__(self, session_or_api, group_id, wait=25, version=1, timeout=None):
         super().__init__(session_or_api, None, wait, version, timeout)
         self.group_id = group_id
@@ -164,7 +163,7 @@ class VkLongpollMode(IntEnum):
     """ Дополнительные опции ответа
 
     `Подробнее в документации VK API
-    <https://vk.com/dev/using_longpoll?f=1.+Подключение>`_
+    <https://vk.ru/dev/using_longpoll?f=1.+Подключение>`_
     """
 
     #: Получать вложения
@@ -191,7 +190,7 @@ class VkEventType(IntEnum):
     """ Перечисление событий, получаемых от longpoll-сервера.
 
     `Подробнее в документации VK API
-    <https://vk.com/dev/using_longpoll?f=3.+Структура+событий>`__
+    <https://vk.ru/dev/using_longpoll?f=3.+Структура+событий>`__
     """
 
     #: Замена флагов сообщения (FLAGS:=$flags)
@@ -463,7 +462,7 @@ class MessageEvent(object):
     """ Событие, полученное от longpoll-сервера.
 
     Имеет поля в соответствии с `документацией
-    <https://vk.com/dev/using_longpoll_2?f=3.%2BСтруктура%2Bсобытий>`_.
+    <https://vk.ru/dev/using_longpoll_2?f=3.%2BСтруктура%2Bсобытий>`_.
 
     События `MESSAGE_NEW` и `MESSAGE_EDIT` имеют (среди прочих) такие поля:
         - `text` - `экранированный <https://ru.wikipedia.org/wiki/Мнемоники_в_HTML>`_ текст
@@ -473,7 +472,6 @@ class MessageEvent(object):
     """
 
     def __init__(self, raw):
-        self.routing_key = None
         self.raw = raw
 
         self.from_user = False
@@ -483,6 +481,8 @@ class MessageEvent(object):
         self.to_me = False
 
         self.attachments = {}
+        self.attachments_ids = []
+        self.pad_id = None
         self.keyboard = ""
         self.message_data = None
 
@@ -495,7 +495,8 @@ class MessageEvent(object):
         self.type_id = None
         self.group_id = None
         self.fwd_messages = []
-        
+        self.text = None
+
         self.state = ''
         
         try:
@@ -625,6 +626,7 @@ class MessageEvent(object):
             "from_me": self.from_me,
             "to_me": self.to_me,
             "attachments": self.attachments,
+            "attachments_ids": self.attachments_ids,
             "keyboard": self.keyboard, 
             "message_data": self.message_data,
             "message_id": self.message_id,
@@ -635,11 +637,10 @@ class MessageEvent(object):
             "extra_values": self.extra_values,
             "type_id": self.type_id,
             "group_id": self.group_id,
-            "text": self.text,  # Added text field
             "type_id": self.type,  # Added type_id field, assuming it's stored in self.type
             "fwd_messages": self.fwd_messages,  # Added fwd_messages field
-            "datetime": self.datetime.isoformat() if self.datetime else None,  # Convert datetime to ISO format string
-            "state" : self.state
+            "state" : self.state,
+            "text": self.text
         }
 
     @classmethod
@@ -655,6 +656,8 @@ class MessageEvent(object):
         event.from_me = data.get('from_me')
         event.to_me = data.get('to_me')
         event.attachments = data.get('attachments', '')
+        event.attachments_ids = data.get('attachments_ids', []) 
+        event.pad_id = data.get('pad_id')
         event.keyboard = data.get('keyboard', '')
         event.message_data = data.get('message_data')
         event.message_id = data.get('message_id')
@@ -675,7 +678,7 @@ class MessageEvent(object):
         
         return event
 
-    def create_reply(self, reply_text, attachments=None, fwd_messages=None, keyboard=None, payload=None, state = ""):
+    def create_reply(self, reply_text, attachments=None, fwd_messages=None, keyboard=None, payload=None, state = "", attachments_ids=None, pad_id=None):
         """
         Create a MessageEvent as a reply to this message.
         The reply will be addressed to the sender of the original message.
@@ -704,6 +707,8 @@ class MessageEvent(object):
         reply_event.fwd_messages = fwd_messages if fwd_messages else []
         reply_event.keyboard = keyboard if keyboard else ""
         reply_event.payload = payload
+        reply_event.pad_id = pad_id if pad_id is not None else getattr(self, "pad_id", None)
+        reply_event.attachments_ids = attachments_ids if attachments_ids is not None else getattr(self, "attachments_ids", [])        
 
         # Set appropriate flags (modify as needed)
         reply_event.from_me = True
@@ -745,9 +750,91 @@ class MessageEvent(object):
                 command = f"""API.messages.send({{"user_id": "{user_id}","message": "{message_text}","attachment": "{attachments}", "random_id": {random_id}}})"""
         return command
     
+    
+    def has_attachments(self) -> bool:
+        ex = self.extra_values or {}
+        if self.attachments:
+            return True
+        return any(k.startswith("attach1") for k in ex.keys())
+    
+    async def normalized_attachments(self, api) -> list:
+        async def _from_messages_getById():
+            try:
+                r = await api.messages.getById(message_ids=self.message_id, group_id=self.group_id)
+            except Exception:
+                try:
+                    r = await api.messages.getById(message_ids=self.message_id)
+                except Exception:
+                    return []
+            items = (r or {}).get("items") or []
+            return items[0].get("attachments") or [] if items else []
+
+        def _map(atts):
+            out = []
+            for a in atts or []:
+                t = a.get("type")
+                if t == "photo":
+                    sz = (a.get("photo") or {}).get("sizes") or []
+                    sz = [{"type": s.get("type"), "url": s.get("url")} for s in sz if s.get("url")]
+                    if sz:
+                        out.append({"type": "photo", "photo": {"sizes": sz}})
+                elif t == "doc":
+                    d = a.get("doc") or {}
+                    out.append({"type": "doc", "doc": {
+                        "title": d.get("title", ""),
+                        "ext": d.get("ext", ""),
+                        "url": d.get("url", ""),
+                        "date": d.get("date", 0),
+                    }})
+            return out
+
+        got = _map(await _from_messages_getById())
+        if got:
+            return got
+
+        ex = self.extra_values or {}
+        norm = []
+        i = 1
+        while f"attach{i}" in ex and f"attach{i}_type" in ex:
+            token = str(ex[f"attach{i}"])              # "owner_id_item_id"
+            tp = ex[f"attach{i}_type"]                 # "photo" | "doc"
+            try:
+                oid, iid = token.split("_", 1)
+            except Exception:
+                i += 1
+                continue
+
+            if tp == "photo":
+                try:
+                    ph = await api.photos.getById(photos=f"{oid}_{iid}", photo_sizes=1)
+                    if ph:
+                        sz = [{"type": s.get("type"), "url": s.get("url")}
+                            for s in ph[0].get("sizes", []) if s.get("url")]
+                        if sz:
+                            norm.append({"type": "photo", "photo": {"sizes": sz}})
+                except Exception:
+                    pass
+            elif tp == "doc":
+                try:
+                    d = await api.docs.getById(docs=f"{oid}_{iid}")
+                    if d:
+                        d0 = d[0]
+                        norm.append({"type": "doc", "doc": {
+                            "title": d0.get("title", ""),
+                            "ext": d0.get("ext", ""),
+                            "url": d0.get("url", ""),
+                            "date": d0.get("date", 0),
+                        }})
+                except Exception:
+                    pass
+            i += 1
+
+        return norm
+
+
+    
 class EventEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, MessageEvent):
             return obj.to_serializable()
         return json.JSONEncoder.default(self, obj)
-

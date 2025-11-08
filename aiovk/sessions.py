@@ -30,12 +30,12 @@ class BaseSession(ABC):
                                raw_response: bool = False) -> dict:
         """Method that use API instance for sending request to vk server
 
-        :param method_name: any value from the left column of the methods table from `https://vk.com/dev/methods`
+        :param method_name: any value from the left column of the methods table from `https://vk.ru/dev/methods`
         :param params: dict of params that available for current method.
-                       For example see `Parameters` block from: `https://vk.com/dev/account.getInfo`
+                       For example see `Parameters` block from: `https://vk.ru/dev/account.getInfo`
         :param timeout: timeout for response from the server
         :param raw_response: return full response
-        :return: dict that contain data from `Result` block. Example see here: `https://vk.com/dev/account.getInfo`
+        :return: dict that contain data from `Result` block. Example see here: `https://vk.ru/dev/account.getInfo`
         """
 
 
@@ -43,11 +43,11 @@ class TokenSession(BaseSession):
     """Implements simple session that uses existed token for work"""
 
     API_VERSION = '5.81'
-    REQUEST_URL = 'https://api.vk.com/method/'
+    REQUEST_URL = 'https://api.vk.ru/method/'
 
     def __init__(self, access_token: str = None, timeout: int = 10, driver=None):
         """
-        :param access_token: see `User Token` block from `https://vk.com/dev/access_token`
+        :param access_token: see `User Token` block from `https://vk.ru/dev/access_token`
         :param timeout: default time out for any request in current session
         :param driver: TODO add description
         """
@@ -126,17 +126,17 @@ class TokenSession(BaseSession):
 class ImplicitSession(TokenSession):
     """
     For client authorization in js apps and standalone (desktop and mobile) apps
-    See more in https://new.vk.com/dev/implicit_flow_user
+    See more in https://new.vk.ru/dev/implicit_flow_user
     """
-    AUTH_URL = 'https://oauth.vk.com/authorize'
+    AUTH_URL = 'https://oauth.vk.ru/authorize'
 
     def __init__(self, login: str, password: str, app_id: int, scope: str or int or list = None,
                  timeout: int = 10, num_of_attempts: int = 5, driver=None):
         """
         :param login: user login
         :param password: user password
-        :param app_id: application id. More details in `Application registration` block in `https://vk.com/dev/first_guide`
-        :param scope: access rights. See `Access rights` block in `https://vk.com/dev/first_guide`
+        :param app_id: application id. More details in `Application registration` block in `https://vk.ru/dev/first_guide`
+        :param scope: access rights. See `Access rights` block in `https://vk.ru/dev/first_guide`
         :param timeout: default time out for any request in current session
         :param num_of_attempts: number of authorization attempts
         :param driver: TODO add description
@@ -189,7 +189,7 @@ class ImplicitSession(TokenSession):
         # Prepare request
         params = {
             'client_id': self.app_id,
-            'redirect_uri': 'https://oauth.vk.com/blank.html',
+            'redirect_uri': 'https://oauth.vk.ru/blank.html',
             'display': 'mobile',
             'response_type': 'token',
             'v': self.API_VERSION
@@ -228,14 +228,14 @@ class ImplicitSession(TokenSession):
             raise VkAuthError('invalid_data', p.message, form_url, form_data)
         elif p.captcha_url:
             form_data['captcha_key'] = await self.enter_captcha(
-                "https://m.vk.com{}".format(p.captcha_url),
+                "https://m.vk.ru{}".format(p.captcha_url),
                 form_data['captcha_sid']
             )
-            form_url = "https://m.vk.com{}".format(form_url)
+            form_url = "https://m.vk.ru{}".format(form_url)
 
         # Send request
         _, html, redirect_url = await self.driver.post_text(
-            form_url, form_data, headers={aiohttp.hdrs.REFERER: 'https://oauth.vk.com/'})
+            form_url, form_data, headers={aiohttp.hdrs.REFERER: 'https://oauth.vk.ru/'})
         return redirect_url, html
 
     async def _process_2auth_form(self, html: str) -> (str, str):
@@ -308,16 +308,16 @@ class ImplicitSession(TokenSession):
 class AuthorizationCodeSession(TokenSession):
     """
     For client authorization in js apps and standalone (desktop and mobile) apps
-    See more in https://new.vk.com/dev/implicit_flow_user
+    See more in https://new.vk.ru/dev/implicit_flow_user
     """
-    CODE_URL = 'https://oauth.vk.com/access_token'
+    CODE_URL = 'https://oauth.vk.ru/access_token'
 
     def __init__(self, app_id: int, app_secret: str, redirect_uri: str, code: str, timeout: int = 10, driver=None):
         """
-        :param app_id: application id. More details in `Application registration` block in `https://vk.com/dev/first_guide`
-        :param app_secret: application secure key. See https://vk.com/editapp?id={app_id}&section=options
+        :param app_id: application id. More details in `Application registration` block in `https://vk.ru/dev/first_guide`
+        :param app_secret: application secure key. See https://vk.ru/editapp?id={app_id}&section=options
         :param redirect_uri: Authorized redirect URI.
-        :param code: See `https://vk.com/dev/authcode_flow_user`
+        :param code: See `https://vk.ru/dev/authcode_flow_user`
         :param timeout:default time out for any request in current session
         :param driver: TODO add description
         """
