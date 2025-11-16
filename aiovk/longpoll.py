@@ -987,7 +987,7 @@ class BotMessageEvent(MessageEvent):
         self.state = ''
 
         # --- разбор callback JSON ---
-        self.callback_type = raw.get("type")           # 'message_new'
+        self.type = raw.get("type")           # 'message_new'
         self.event_id = raw.get("event_id")
         self.v = raw.get("v")
 
