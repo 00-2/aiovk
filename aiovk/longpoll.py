@@ -801,7 +801,7 @@ class MessageEvent(object):
         reply_event.keyboard = keyboard if keyboard else ""
         reply_event.payload = payload
         reply_event.pad_id = pad_id if pad_id is not None else getattr(self, "pad_id", None)
-        reply_event.attachments_ids = attachments_ids if attachments_ids is not None else getattr(self, "attachments_ids", [])        
+        reply_event.attachments_ids = attachments_ids if attachments_ids is not None else None     
 
         # Set appropriate flags (modify as needed)
         reply_event.from_me = True
