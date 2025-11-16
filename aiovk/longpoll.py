@@ -279,7 +279,7 @@ class VkEventType(IntEnum):
     #: $disabled_until — выключение оповещений на необходимый срок.
     NOTIFICATION_SETTINGS_UPDATE = 114
 
-class VkBotEventType(IntEnum):
+class VkBotEventType():
     """ Перечисление событий, получаемых от longpoll-сервера.
 
     `Подробнее в документации VK API
