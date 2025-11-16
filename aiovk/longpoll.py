@@ -905,23 +905,22 @@ class BotMessageEvent(MessageEvent):
         self.group_id = raw.get("group_id")
 
         obj = raw.get("object") or {}
-        message = obj.get("message") or {}
-        self.message_data = message
+        self.message = obj.get("message") or {}
 
         # основные поля сообщения
-        self.message_id = message.get("id")
-        self.peer_id = message.get("peer_id")
-        self.from_id = message.get("from_id")
-        self.text = message.get("text") or ""
-        self.timestamp = message.get("date")
+        self.message_id = self.message.get("id")
+        self.peer_id = self.message.get("peer_id")
+        self.from_id = self.message.get("from_id")
+        self.text = self.message.get("text") or ""
+        self.timestamp = self.message.get("date")
 
         if self.timestamp:
             self.datetime = datetime.utcfromtimestamp(self.timestamp)
 
         # VK attachments + fwd
         # тут оставляем в "сыром" виде из Callback API
-        self.attachments = message.get("attachments") or []
-        self.fwd_messages = message.get("fwd_messages") or []
+        self.attachments = self.message.get("attachments") or []
+        self.fwd_messages = self.message.get("fwd_messages") or []
 
         # client_info пригодится, если ты используешь его где-то
         self.client_info = obj.get("client_info") or {}
