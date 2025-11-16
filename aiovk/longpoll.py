@@ -1050,7 +1050,7 @@ class BotMessageEvent(MessageEvent):
             if atype and owner_id is not None and media_id is not None:
                 # например: photo12345_67890
                 self.attachments_ids.append(f"{atype}{owner_id}_{media_id}")
-        self.type = raw.type
+        self.type = obj.type
     
 class EventEncoder(json.JSONEncoder):
     def default(self, obj):
