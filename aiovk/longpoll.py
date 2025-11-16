@@ -832,6 +832,137 @@ class MessageEvent(object):
         return norm
 
 
+from datetime import datetime
+
+# предполагаю, что у тебя уже есть:
+# from vk_api.longpoll import VkEventType
+
+class BotMessageEvent(MessageEvent):
+    """
+    Обёртка над Callback API-событием (webhook / server-side),
+    ведущая себя как MessageEvent из longpoll.
+
+    Ожидаемый raw:
+    {
+        "group_id": ...,
+        "type": "message_new",
+        "event_id": "...",
+        "v": "5.131",
+        "object": {
+            "client_info": {...},
+            "message": {
+                "date": ...,
+                "from_id": ...,
+                "id": ...,
+                "peer_id": ...,
+                "text": "...",
+                "attachments": [...],
+                "fwd_messages": [...],
+                ...
+            }
+        }
+    }
+    """
+
+    def __init__(self, raw: dict):
+        # --- базовая инициализация полей, как в MessageEvent.__init__ ---
+        self.raw = raw
+
+        self.from_user = False
+        self.from_chat = False
+        self.from_group = False
+        self.from_me = False
+        self.to_me = False
+
+        self.attachments = {}
+        self.attachments_ids = []
+        self.pad_id = None
+        self.keyboard = ""
+        self.message_data = None
+
+        self.message_id = None
+        self.timestamp = None
+        self.peer_id = None
+        self.flags = None
+        self.extra = None
+        self.extra_values = None
+        self.type_id = None
+        self.group_id = None
+        self.fwd_messages = []
+        self.text = None
+
+        self.state = ''
+
+        # --- разбор callback JSON ---
+        self.callback_type = raw.get("type")           # 'message_new'
+        self.event_id = raw.get("event_id")
+        self.v = raw.get("v")
+
+        # ставим type так, как ждёт старый код
+        # если нужно ещё message_edit и т.п. — расширишь mapping
+        self.type = VkEventType.MESSAGE_NEW
+
+        self.group_id = raw.get("group_id")
+
+        obj = raw.get("object") or {}
+        message = obj.get("message") or {}
+        self.message_data = message
+
+        # основные поля сообщения
+        self.message_id = message.get("id")
+        self.peer_id = message.get("peer_id")
+        self.from_id = message.get("from_id")
+        self.text = message.get("text") or ""
+        self.timestamp = message.get("date")
+
+        if self.timestamp:
+            self.datetime = datetime.utcfromtimestamp(self.timestamp)
+
+        # VK attachments + fwd
+        # тут оставляем в "сыром" виде из Callback API
+        self.attachments = message.get("attachments") or []
+        self.fwd_messages = message.get("fwd_messages") or []
+
+        # client_info пригодится, если ты используешь его где-то
+        self.client_info = obj.get("client_info") or {}
+
+        # --- флаги from_* / to_me максимально близко к MessageEvent ---
+        if self.peer_id is not None:
+            if self.peer_id >= 2000000000:
+                # беседа
+                self.from_chat = True
+            elif self.peer_id > 0:
+                # личка с юзером
+                self.from_user = True
+            elif self.peer_id < 0:
+                # диалог с сообществом
+                self.from_group = True
+
+        # сообщение "от бота"
+        if self.group_id is not None and getattr(self, "from_id", None) is not None:
+            if self.from_id == -int(self.group_id):
+                self.from_me = True
+
+        # Callback приходит целиком "боту"
+        self.to_me = True
+
+        # --- attachments_ids в духе vk_api ---
+        self.attachments_ids = []
+        for a in self.attachments:
+            if not isinstance(a, dict):
+                continue
+
+            atype = a.get("type")
+            payload = a.get(atype) if atype and atype in a else None
+            if not isinstance(payload, dict):
+                continue
+
+            owner_id = payload.get("owner_id")
+            media_id = payload.get("id")
+            if atype and owner_id is not None and media_id is not None:
+                # например: photo12345_67890
+                self.attachments_ids.append(f"{atype}{owner_id}_{media_id}")
+
     
 class EventEncoder(json.JSONEncoder):
     def default(self, obj):
