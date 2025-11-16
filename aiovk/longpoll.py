@@ -999,6 +999,7 @@ class BotMessageEvent(MessageEvent):
         # основные поля сообщения
         self.message_id = self.message.get("id")
         self.peer_id = self.message.get("peer_id")
+        self.conversation_message_id = self.message.get("conversation_message_id")
         self.from_id = self.message.get("from_id")
         self.text = self.message.get("text") or ""
         self.timestamp = self.message.get("date")
