@@ -1050,7 +1050,83 @@ class BotMessageEvent(MessageEvent):
             if atype and owner_id is not None and media_id is not None:
                 # например: photo12345_67890
                 self.attachments_ids.append(f"{atype}{owner_id}_{media_id}")
-    
+
+    async def normalized_attachments(self, api) -> list:
+        async def _from_messages_getById():
+            try:
+                r = await api.messages.getById(message_ids=self.message_id, peer_id=self.peer_id)
+            except Exception as e:
+                print('Except ', e)
+                try:
+                    r = await api.messages.getById(message_ids=self.message_id)
+                except Exception:
+                    return []
+            items = (r or {}).get("items") or []
+            return items[0].get("attachments") or [] if items else []
+
+        def _map(atts):
+            out = []
+            for a in atts or []:
+                t = a.get("type")
+                if t == "photo":
+                    sz = (a.get("photo") or {}).get("sizes") or []
+                    sz = [{"type": s.get("type"), "url": s.get("url")} for s in sz if s.get("url")]
+                    if sz:
+                        out.append({"type": "photo", "photo": {"sizes": sz}})
+                elif t == "doc":
+                    d = a.get("doc") or {}
+                    out.append({"type": "doc", "doc": {
+                        "title": d.get("title", ""),
+                        "ext": d.get("ext", ""),
+                        "url": d.get("url", ""),
+                        "date": d.get("date", 0),
+                    }})
+            return out
+
+        got = _map(await _from_messages_getById())
+        if got:
+            return got
+
+        ex = self.extra_values or {}
+        norm = []
+        i = 1
+        while f"attach{i}" in ex and f"attach{i}_type" in ex:
+            token = str(ex[f"attach{i}"])              # "owner_id_item_id"
+            tp = ex[f"attach{i}_type"]                 # "photo" | "doc"
+            try:
+                oid, iid = token.split("_", 1)
+            except Exception:
+                i += 1
+                continue
+
+            if tp == "photo":
+                try:
+                    ph = await api.photos.getById(photos=f"{oid}_{iid}", photo_sizes=1)
+                    if ph:
+                        sz = [{"type": s.get("type"), "url": s.get("url")}
+                            for s in ph[0].get("sizes", []) if s.get("url")]
+                        if sz:
+                            norm.append({"type": "photo", "photo": {"sizes": sz}})
+                except Exception:
+                    pass
+            elif tp == "doc":
+                try:
+                    d = await api.docs.getById(docs=f"{oid}_{iid}")
+                    if d:
+                        d0 = d[0]
+                        norm.append({"type": "doc", "doc": {
+                            "title": d0.get("title", ""),
+                            "ext": d0.get("ext", ""),
+                            "url": d0.get("url", ""),
+                            "date": d0.get("date", 0),
+                        }})
+                except Exception:
+                    pass
+            i += 1
+
+        return norm
+
+
 class EventEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, MessageEvent):
