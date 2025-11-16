@@ -1054,7 +1054,7 @@ class BotMessageEvent(MessageEvent):
     async def normalized_attachments(self, api) -> list:
         async def _from_messages_getById():
             try:
-                r = await api.messages.getById(message_ids=self.message_id, peer_id=self.peer_id)
+                r = await api.messages.getById(cmids=self.conversation_message_id, peer_id=self.peer_id)
             except Exception as e:
                 print('Except ', e)
                 try:
