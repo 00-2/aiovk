@@ -92,7 +92,7 @@ class BaseLongPoll(ABC):
             self.base_url = None
 
         return await self.wait()
-    
+
     async def iter(self):
         while True:
             response = await self.wait()
@@ -128,7 +128,7 @@ class LongPoll(UserLongPoll):
     This class for backward compatibility
     """
 
-    
+
 class BotsLongPoll(BaseLongPoll):
     """Implements https://vk.ru/dev/bots_longpoll"""
     def __init__(self, session_or_api, group_id, wait=25, version=1, timeout=None):
@@ -591,7 +591,7 @@ class MessageEvent(object):
         self.text = None
 
         self.state = ''
-        
+
         try:
             self.type = VkEventType(self.raw[0])
             self._list_to_attr(self.raw[1:], EVENT_ATTRS_MAPPING[self.type])
@@ -709,7 +709,7 @@ class MessageEvent(object):
                               VkChatEventType.USER_KICKED.value,
                               VkChatEventType.ADMIN_REMOVED.value]:
             self.info = {'user_id': self.info}
-    
+
     def to_serializable(self):
         return {
             "raw": self.raw,
@@ -720,7 +720,7 @@ class MessageEvent(object):
             "to_me": self.to_me,
             "attachments": self.attachments,
             "attachments_ids": self.attachments_ids,
-            "keyboard": self.keyboard, 
+            "keyboard": self.keyboard,
             "message_data": self.message_data,
             "message_id": self.message_id,
             "timestamp": self.timestamp,
@@ -749,7 +749,7 @@ class MessageEvent(object):
         event.from_me = data.get('from_me')
         event.to_me = data.get('to_me')
         event.attachments = data.get('attachments', '')
-        event.attachments_ids = data.get('attachments_ids', []) 
+        event.attachments_ids = data.get('attachments_ids', [])
         event.pad_id = data.get('pad_id')
         event.keyboard = data.get('keyboard', '')
         event.message_data = data.get('message_data')
@@ -768,7 +768,7 @@ class MessageEvent(object):
         if 'datetime' in data and data['datetime']:
             event.datetime = datetime.fromisoformat(data['datetime'])
         event.state = data.get('state')
-        
+
         return event
 
     def create_reply(self, reply_text, attachments=None, fwd_messages=None, keyboard=None, payload=None, state = "", attachments_ids=None, pad_id=None):
@@ -801,7 +801,7 @@ class MessageEvent(object):
         reply_event.keyboard = keyboard if keyboard else ""
         reply_event.payload = payload
         reply_event.pad_id = pad_id if pad_id is not None else getattr(self, "pad_id", None)
-        reply_event.attachments_ids = attachments_ids if attachments_ids is not None else None     
+        reply_event.attachments_ids = attachments_ids if attachments_ids is not None else None
 
         # Set appropriate flags (modify as needed)
         reply_event.from_me = True
@@ -812,11 +812,11 @@ class MessageEvent(object):
 
         # Set external fields
         reply_event.group_id = self.group_id
-        
+
         reply_event.raw = [reply_event.type_id, reply_event.message_id, reply_event.flags, reply_event.peer_id, reply_event.timestamp, reply_event.text, reply_event.extra_values]
-        
+
         reply_event.state = state
-        
+
         return reply_event
 
     def to_command(self):
@@ -833,7 +833,7 @@ class MessageEvent(object):
             # Construct the command for sending a message to a user
             user_id = self.peer_id
             message_text = self.text
-            random_id = random.randint(0, 2048)
+            random_id = random.randint(0, 2**31 - 1)
 
             # If the event includes attachments or other special content, add those here
             attachments = self.attachments if self.attachments else ''
@@ -842,14 +842,14 @@ class MessageEvent(object):
             else:
                 command = f"""API.messages.send({{"user_id": "{user_id}","message": "{message_text}","attachment": "{attachments}", "random_id": {random_id}}})"""
         return command
-    
-    
+
+
     def has_attachments(self) -> bool:
         ex = self.extra_values or {}
         if self.attachments:
             return True
         return any(k.startswith("attach1") for k in ex.keys())
-    
+
     async def normalized_attachments(self, api) -> list:
         async def _from_messages_getById():
             try:
